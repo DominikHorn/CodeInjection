@@ -50,10 +50,8 @@ int main(int argc, char* argv[]) {
 
    signal(SIGINT, killChild);
 
-
    victimPid = loadVictim(argv[1]);
    printf("main(): done loading victim (PID: %d)\n", victimPid);
-
    // TODO: tmp
    while (true) {
       sleep(1);
