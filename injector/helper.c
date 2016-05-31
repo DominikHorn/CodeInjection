@@ -15,6 +15,7 @@ unsigned long symtab = -1;
 unsigned long strtab = -1;
 int nchains = -1;
 
+/* retrieve last path component of string */
 char* getLastPathComponent(char* path) {
    int lastComponentStartIndex = 0;
 
@@ -31,6 +32,14 @@ char* getLastPathComponent(char* path) {
    return path + lastComponentStartIndex;
 }
 
+/* attach to tracee */
+void ptrace_attach(pid_t pid) {
+   if (ptrace(PTRACE_ATTACH, pid, NULL, NULL) < 0) {
+      fprintf(stderr, "could not attach with ptrace!\n");
+      exit(EXIT_ERRORPTRACE);
+   }
+}
+
 /* continue exection */
 void ptrace_cont(pid_t pid) {
    int status = 0;
@@ -43,6 +52,7 @@ void ptrace_cont(pid_t pid) {
    while (!WIFSTOPPED(status)) waitpid(pid, &status, WNOHANG);
 }
 
+/* detach from tracee */
 void ptrace_detach(pid_t pid) {
    if (ptrace(PTRACE_DETACH, pid, NULL, NULL) < 0) {
       fprintf(stderr, "could not detach with ptrace!\n");
@@ -50,6 +60,12 @@ void ptrace_detach(pid_t pid) {
    }
 }
 
+/* set ptrace options so that the tracee will not live on after injector/loader exits */
+void ptrace_kill_on_parent_exit(pid_t pid) {
+   ptrace(PTRACE_SETOPTIONS, pid, PTRACE_O_TRACEEXEC, NULL);
+}
+
+/* read data from remote process' space*/
 void* read_data(pid_t pid, unsigned long addr, void *vptr, int len) {
    int i, count;
    long word;
@@ -62,12 +78,14 @@ void* read_data(pid_t pid, unsigned long addr, void *vptr, int len) {
    }
 }
 
+/* read a string from the remote process' space */
 char* read_str(int pid, unsigned long addr, int len) {
    char* ret = calloc(len, sizeof(char));
    read_data(pid, addr, ret, len);
    return ret;
 }
 
+/* write data to remote process' space */
 void write_data(pid_t pid, unsigned long addr, void *vptr, int len) {
    int i, count;
    long word;
@@ -80,6 +98,7 @@ void write_data(pid_t pid, unsigned long addr, void *vptr, int len) {
    }
 }
 
+/* locates and extracts the linkmap inside the remote process */
 struct link_map* locate_linkmap(int pid) {
    Elf_Ehdr* ehdr = malloc(sizeof(Elf_Ehdr));
    Elf_Phdr* phdr = malloc(sizeof(Elf_Phdr));
@@ -125,6 +144,7 @@ struct link_map* locate_linkmap(int pid) {
    return l;
 }
 
+/* resolves tables inside link_map */
 void resolv_tables(int pid, struct link_map* map) {
    Elf_Dyn* dyn = malloc(sizeof(Elf_Dyn));
    unsigned long addr;
@@ -158,6 +178,7 @@ void resolv_tables(int pid, struct link_map* map) {
    free(dyn);
 }
 
+/* searches tables for specific symbol */
 unsigned long find_sym_in_tables(int pid, struct link_map* map, char* sym_name) {
    Elf_Sym* sym = malloc(sizeof(Elf_Sym));
    char* str;

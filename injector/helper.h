@@ -3,7 +3,9 @@ char* getLastPathComponent(char* path);
 
 // ptrace helpers
 void ptrace_cont(pid_t pid);
+void ptrace_attach(pid_t pid);
 void ptrace_detach(pid_t pid);
+void ptrace_kill_on_parent_exit(pid_t pid);
 
 // changing other process
 void* read_data(pid_t pid, unsigned long addr, void *vptr, int len);
