@@ -5,7 +5,8 @@
 #define false 0
 
 void lefunction() {
-   printf("I AM LE INVICIBLE\n");
+   static int counter = 0;
+   printf("I AM LE INVICIBLE: %d\n", counter++);
 }
 
 int main(int argc, char* argv[]) {
