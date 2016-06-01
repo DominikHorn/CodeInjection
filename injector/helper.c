@@ -41,7 +41,7 @@ void ptrace_attach(pid_t pid) {
 }
 
 /* continue exection */
-void ptrace_cont(pid_t pid) {
+void ptrace_cont(pid_t pid) {   
    int status = 0;
 
    if (ptrace(PTRACE_CONT, pid, NULL, NULL) < 0) {
@@ -201,91 +201,28 @@ unsigned long find_sym_in_tables(int pid, struct link_map* map, char* sym_name) 
    return 0;
 }
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+// addr resolving
+unitptr_t find_library( const char *library, pid_t pid ) {
+   char filename[0xFF] = {0}, buffer[1024] = {0};
+   FILE* fp = NULL;
+   unitptr_t adress = 0;
+   sprintf(filename, "/proc/%d/maps", pid);
+   
+   fp = fopen(filename, "rt");
+   if (fp == NULL) {
+      fprintf(stderr, "Could not open procs file %s\n", filename);
+      exit(EXIT_ERRORPROCS);
+   }
+   
+   while (fgets(buffer, sizeof(buffer), fp)) {
+      if (strstr(buffer, library)) {
+         adress = (unitptr_t)strtoul(buffer, NULL, 16);
+         break;
+      }
+   }
+   
+   if (fp)
+      fclose(fp);
+      
+   return adress;
+}

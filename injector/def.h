@@ -10,6 +10,7 @@
 #define EXIT_NOVICTIM -2
 #define EXIT_ERRORFORK -3
 #define EXIT_ERRORPTRACE -4
+#define EXIT_ERRORPROCS -5
 
 #define ELF_HEADER 0x400000
 
