@@ -4,6 +4,7 @@
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <sys/user.h>
 #include <unistd.h>
 #include <elf.h>
 #include <link.h>
@@ -61,13 +62,27 @@ void ptrace_detach(pid_t pid) {
    }
 }
 
+void ptrace_getregs(pid_t pid, struct user_regs_struct* regs) {
+   if (ptrace(PTRACE_GETREGS,pid, NULL, regs) == -1) {
+      fprintf(stderr, "PTRACE could not get regs for pid: %d\n", pid);
+      exit(EXIT_ERRORPTRACE);
+   }
+}
+
+void ptrace_setregs(pid_t pid, struct user_regs_struct* regs) {
+   if (ptrace(PTRACE_SETREGS, pid, NULL, regs) == -1) {
+      fprintf(stderr, "PTRACE could not set regs for pid: %d\n", pid);
+      exit(EXIT_ERRORPTRACE);
+   }
+}
+
 /* set ptrace options so that the tracee will not live on after injector/loader exits */
 void ptrace_kill_on_parent_exit(pid_t pid) {
    ptrace(PTRACE_SETOPTIONS, pid, PTRACE_O_TRACEEXEC, NULL);
 }
 
 /* read data from remote process' space*/
-void* read_data(pid_t pid, unsigned long addr, void *vptr, int len) {
+void read_data(pid_t pid, unsigned long addr, void *vptr, int len) {
    int i, count;
    long word;
    unsigned long* ptr = (unsigned long*)vptr;
@@ -206,11 +221,11 @@ unsigned long find_sym_in_tables(int pid, struct link_map* map, char* sym_name) 
  * Since ASLR does not change symbol offsets inside of libraries we can still find the desired    
  * REMOTE_ADDRESS by adding our locally calculated symbold offset to the remote library base adress
  */
-unsigned long find_library( const char *library, pid_t pid ) {
+unsigned long find_library(const char *library, pid_t remote_pid) {
    char filename[0xFF] = {0}, buffer[1024] = {0};
    FILE* fp = NULL;
    unsigned long address = 0;
-   sprintf(filename, "/proc/%d/maps", pid);
+   sprintf(filename, "/proc/%d/maps", remote_pid);
    
    fp = fopen(filename, "rt");
    if (fp == NULL) {
@@ -245,4 +260,28 @@ unsigned long find_remote_function(const char* library, unsigned long local_addr
    remote_handle = find_library(library, remote_pid);
    
    return (unsigned long)((unsigned long)remote_handle + local_addr -(unsigned long)local_handle);
+}
+
+unsigned long find_free_space_addr(pid_t remote_pid) {
+   FILE* fp;
+   char filename[30];
+   char line[850];
+   unsigned long addr;
+   char str[20];
+   char perms[5];
+   sprintf(filename, "/proc/%d/maps", remote_pid);
+   fp = fopen(filename, "r");
+   if (fp == NULL)
+      exit(EXIT_ERRORPROCS);
+     
+   while (fgets(line, 850, fp) != NULL) {
+      sscanf(line, "%lx-%*lx %s %*s %s %*d", &addr, perms, str);
+      
+      if (strstr(perms, "x") != NULL) {
+         break;
+      }
+   }
+   
+   fclose(fp);
+   return addr;
 }
