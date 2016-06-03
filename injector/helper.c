@@ -231,12 +231,18 @@ unsigned long find_library( const char *library, pid_t pid ) {
    return address;
 }
 
+/* get address of a libc function */
+unsigned long find_libc_function(const char* func_name) {
+   void* self = dlopen("libc.so.6", RTLD_LAZY);
+   return (unsigned long)dlsym(self, func_name);
+}
+
 /* Addr resolving (find actual function in remote process) */
-unsigned long find_function(const char* library, void* local_addr, pid_t remote_pid) {
+unsigned long find_remote_function(const char* library, unsigned long local_addr, pid_t remote_pid) {
    unsigned long local_handle, remote_handle;
 
    local_handle = find_library(library, getpid());
    remote_handle = find_library(library, remote_pid);
    
-   return (unsigned long)((unsigned long)remote_handle + (unsigned long)local_addr -(unsigned long)local_handle);
+   return (unsigned long)((unsigned long)remote_handle + local_addr -(unsigned long)local_handle);
 }

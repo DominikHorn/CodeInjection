@@ -54,24 +54,16 @@ void restore_remote(pid_t pid) {
 #endif
 }
 
-void gain_code_exec(pid_t pid) {
-   // Find remote function adresses for malloc, free, etc
-   void* (*local_malloc)(size_t size) = &malloc;
-   void (*local_free)(void* ptr) = &free;
-   
-   printf("malloc is @ %p\nfree is @ %p\n", local_malloc, local_free);
-   
-   // Method 2 to find those functions
-   long malloc_addr = 0;
-   void* self = dlopen("libc.so.6", RTLD_LAZY);
-   void* funcAddr = dlsym(self, "malloc");
-   malloc_addr = (long)funcAddr;
-   printf("malloc is @ %p according to method 2\n", malloc_addr);
+void gain_code_exec(pid_t remote_pid) {
+   // Find remote function adresses for malloc, free, __libc_dlopen_mode
+   long remote_malloc_addr = find_remote_function("libc", find_libc_function("malloc"), remote_pid);
+   long remote_free_addr = find_remote_function("libc", find_libc_function("free"), remote_pid);
+   long remote_dlopen_addr = find_remote_function("libc", find_libc_function("__libc_dlopen_mode"), remote_pid);
    
    // Initialize global regs structs variables
    memset(&_regs_backup, 0, sizeof(struct user_regs_struct));
    memset(&_regs_fiddle, 0, sizeof(struct user_regs_struct));
-   ptrace(PTRACE_GETREGS, pid, NULL, &_regs_backup);
+   ptrace(PTRACE_GETREGS, remote_pid, NULL, &_regs_backup);
 
    printf("TMP; HALTING FOR 5 seconds\n");
    sleep(5);

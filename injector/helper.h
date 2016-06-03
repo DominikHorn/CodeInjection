@@ -19,4 +19,7 @@ unsigned long find_sym_in_tables(int pid, struct link_map* map, char* sym_name);
 
 // addr resolving to defeat aslr should it be present
 unsigned long find_library(const char* library, pid_t pid);
-unsigned long find_function(const char* library, void* local_addr, pid_t remote_pid);
+unsigned long find_libc_function(const char* func_name);
+unsigned long find_remote_function(const char* library, unsigned long local_addr, pid_t remote_pid);
+
+
