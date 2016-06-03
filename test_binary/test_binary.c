@@ -12,6 +12,6 @@ void lefunction() {
 int main(int argc, char* argv[]) {
    while (true) {
       lefunction();
-      sleep(2);
+      sleep(1);
    }
 }

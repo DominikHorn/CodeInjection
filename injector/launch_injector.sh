@@ -1,8 +1,8 @@
 #!/bin/bash
 
-trap "trap - SIGTERM && kill -- -$$; rm injector" SIGINT SIGTERM EXIT
+trap "rm injector; trap - SIGTERM && kill -- -$$" SIGINT SIGTERM EXIT
 
-$(gcc -o injector -std=c99 main.c helper.c)
+$(gcc -o injector -std=c99 -ldl main.c helper.c injector_x86_64.c)
 if [[ $? != 0 ]]; then
    echo "An error occured compiling. Exiting..."
    exit

@@ -17,5 +17,6 @@ struct link_map* locate_linkmap(int pid);
 void resolv_tables(int pid, struct link_map* map);
 unsigned long find_sym_in_tables(int pid, struct link_map* map, char* sym_name);
 
-// addr resolving
-unitptr_t find_library( const char *library, pid_t pid = -1 );
+// addr resolving to defeat aslr should it be present
+unsigned long find_library(const char* library, pid_t pid);
+unsigned long find_function(const char* library, void* local_addr, pid_t remote_pid);

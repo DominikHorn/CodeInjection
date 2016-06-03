@@ -1,6 +1,5 @@
 #define _POSIX_SOURCE
 #include <stdio.h>
-#include <signal.h>
 #include <stdlib.h>
 #include <sys/ptrace.h>
 #include <sys/types.h>
@@ -12,6 +11,7 @@
 
 #include "helper.h"
 #include "def.h"
+#include "injector_x86_64.h"
 
 short _launcher_mode = false;
 
@@ -20,18 +20,18 @@ void wrong_usage(char* prog_name) {
    exit(EXIT_INVALIDPARAM);
 }
 
-// loads the victim and returns pid
-pid_t launch_victim_and_trace(char* victimPath) {
+// loads the remote and returns pid
+pid_t launch_remote_and_trace(char* remote_path) {
    pid_t pid = fork();
    if (pid == false) {
       // Prep for ptrace
       ptrace(PTRACE_TRACEME, 0, NULL, NULL);
 
-      // Load Victim
-      char* argv[] = {getLastPathComponent(victimPath), NULL};
-      execv(victimPath, argv);
-      fprintf(stderr, "Could not load victim (%s)!\n", victimPath);
-      exit(EXIT_NOVICTIM);
+      // Load remote
+      char* argv[] = {getLastPathComponent(remote_path), NULL};
+      execv(remote_path, argv);
+      fprintf(stderr, "Could not load remote (%s)!\n", remote_path);
+      exit(EXIT_NOREMOTE);
    } else if (pid == -1) {
       fprintf(stderr, "Could not fork!\n");
       exit(EXIT_ERRORFORK);
@@ -40,50 +40,38 @@ pid_t launch_victim_and_trace(char* victimPath) {
    return pid;
 }
 
-void gain_code_exec(pid_t pid) {
-   // Find remote function adresses for malloc, free, etc
-
-   // Load stub code into process space of tracee
-
-   // Continue child
-   ptrace_cont(pid);
-}
-
 int main(int argc, char* argv[]) {
    int status = -1;
-   pid_t victim_pid = 0;
+   pid_t remote_pid = 0;
 
    if (argc != 3) {
       wrong_usage(argv[0]);
    }
    
-   // launch victim and trace  
+   // launch remote and trace  
    if (strcmp(argv[1], "-l") == 0) {
       _launcher_mode = true;
-      victim_pid = launch_victim_and_trace(argv[2]);
+      remote_pid = launch_remote_and_trace(argv[2]);
  
-      printf("main(): Done launching. (Binary: %s, PID: %d)\n", argv[2], victim_pid);
+      printf("main(): Done launching. (Binary: %s, PID: %d)\n", argv[2], remote_pid);
    } else if (strcmp(argv[1], "-a") == 0) {
       // get pid and attach
-      victim_pid = atoi(argv[2]);
-      ptrace_attach(victim_pid);
+      remote_pid = atoi(argv[2]);
+      ptrace_attach(remote_pid);
       
-      printf("main(): Done attaching to Process with PID %d)\n", victim_pid);    
+      printf("main(): Done attaching to Process with PID %d)\n", remote_pid);
    } else {
       wrong_usage(argv[0]);
    }
   
    // Wait for Tracee to stop
-   waitpid(victim_pid, &status, 0); 
-  
-   // Gain code execution inside victim process
-   gain_code_exec(victim_pid);
-
-#ifndef DEBUG
-   if (_launcher_mode)
-      // Detach and let injected child continue orphanaged
-      ptrace_detach(victim_pid);
-#endif
-
+   waitpid(remote_pid, &status, 0);
+   
+   // Gain code execution inside remote process
+   gain_code_exec(remote_pid);
+   
+   // Restore remote process and continue
+   restore_remote(remote_pid);
+   
    exit(EXIT_SUCCESS);
 }

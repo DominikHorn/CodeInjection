@@ -4,6 +4,7 @@
 #include <sys/ptrace.h>
 #include <sys/types.h>
 #include <sys/wait.h>
+#include <unistd.h>
 #include <elf.h>
 #include <link.h>
 
@@ -201,11 +202,14 @@ unsigned long find_sym_in_tables(int pid, struct link_map* map, char* sym_name) 
    return 0;
 }
 
-// addr resolving
-unitptr_t find_library( const char *library, pid_t pid ) {
+/* Addr resolving (Find a librarys address in a specified process).
+ * Since ASLR does not change symbol offsets inside of libraries we can still find the desired    
+ * REMOTE_ADDRESS by adding our locally calculated symbold offset to the remote library base adress
+ */
+unsigned long find_library( const char *library, pid_t pid ) {
    char filename[0xFF] = {0}, buffer[1024] = {0};
    FILE* fp = NULL;
-   unitptr_t adress = 0;
+   unsigned long address = 0;
    sprintf(filename, "/proc/%d/maps", pid);
    
    fp = fopen(filename, "rt");
@@ -216,7 +220,7 @@ unitptr_t find_library( const char *library, pid_t pid ) {
    
    while (fgets(buffer, sizeof(buffer), fp)) {
       if (strstr(buffer, library)) {
-         adress = (unitptr_t)strtoul(buffer, NULL, 16);
+         address = (unsigned long)strtoul(buffer, NULL, 16);
          break;
       }
    }
@@ -224,5 +228,15 @@ unitptr_t find_library( const char *library, pid_t pid ) {
    if (fp)
       fclose(fp);
       
-   return adress;
+   return address;
+}
+
+/* Addr resolving (find actual function in remote process) */
+unsigned long find_function(const char* library, void* local_addr, pid_t remote_pid) {
+   unsigned long local_handle, remote_handle;
+
+   local_handle = find_library(library, getpid());
+   remote_handle = find_library(library, remote_pid);
+   
+   return (unsigned long)((unsigned long)remote_handle + (unsigned long)local_addr -(unsigned long)local_handle);
 }
